@@ -1,0 +1,231 @@
+/* ===== 品牌设计变量（主题色取自微光 logo 蓝） ===== */
+:root {
+  /* logo 主蓝 / 亮蓝 / 青色 */
+  --glimmer-blue: #0b63f6;
+  --glimmer-blue-2: #2e8bff;
+  --glimmer-blue-bg: #e9f1ff;
+  --glimmer-cyan: #12b8f5;
+  --glimmer-cyan-bg: #e3f8ff;
+  --glimmer-success: #1e9600;
+  --glimmer-success-2: #4eb52e;
+  --glimmer-success-bg: #e8f4e5;
+  /* 兼容历史变量名：旧组件仍引用 green，实际指向品牌蓝 */
+  --glimmer-green: var(--glimmer-blue);
+  --glimmer-green-2: var(--glimmer-blue-2);
+  --glimmer-green-bg: var(--glimmer-blue-bg);
+
+  --glimmer-bg: #f5f7fa;
+  --glimmer-card: #ffffff;
+  --glimmer-text: #1d2533;
+  --glimmer-text-2: #5a6474;
+  --glimmer-text-3: #98a1b0;
+  --glimmer-border: #e8edf6;
+  --glimmer-shadow: 0 6px 18px rgba(11, 99, 246, 0.08);
+  --glimmer-shadow-hover: 0 10px 28px rgba(11, 99, 246, 0.16);
+
+  /* Element Plus 主色覆写为微光蓝 */
+  --el-color-primary: #0b63f6;
+  --el-color-primary-light-3: #4a8cff;
+  --el-color-primary-light-5: #7aabff;
+  --el-color-primary-light-7: #a9c8ff;
+  --el-color-primary-light-8: #c9dcff;
+  --el-color-primary-light-9: #e9f1ff;
+  --el-color-primary-dark-2: #084cc4;
+
+  /* 功能色 */
+  --el-color-success: #1e9600;
+  --el-color-warning: #e6a23c;
+  --el-color-danger: #f56c6c;
+  --el-color-info: #409eff;
+
+  --el-border-radius-base: 10px;
+  --el-font-family: 'Roboto', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  text-decoration: none;
+  color: var(--el-color-primary);
+}
+
+/* ===== 通用页面容器 ===== */
+.page-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--glimmer-text);
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: var(--glimmer-text-3);
+  margin: 0 0 20px;
+}
+
+/* ===== 品牌卡片 ===== */
+.glimmer-card {
+  background: var(--glimmer-card);
+  border-radius: 16px;
+  box-shadow: var(--glimmer-shadow);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.glimmer-card:hover {
+  box-shadow: var(--glimmer-shadow-hover);
+}
+
+/* ===== 主按钮微交互 ===== */
+.el-button--primary {
+  font-weight: 500;
+  transition: all 0.25s ease;
+}
+.el-button--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(11, 99, 246, 0.28);
+}
+
+/* ===== 弹窗：固定宽度 + 屏幕居中，内容多时内部滚动 ===== */
+/* Element Plus 默认用 text-align + inline-block + ::after 撑高做居中，
+   一旦把 .el-message-box 改成 flex 就会失去水平/垂直居中并撑满整行，
+   这里改用 flex 居中，并显式恢复 420px 宽度（原先只覆盖了 max-width）。 */
+.el-overlay.is-message-box .el-overlay-message-box,
+.el-overlay .el-overlay-message-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.el-overlay.is-message-box .el-overlay-message-box::after {
+  content: none;
+}
+
+.el-message-box {
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  max-height: 80vh;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+}
+
+.el-message-box__content {
+  overflow-y: auto;
+  max-height: 56vh;
+  line-height: 1.7;
+}
+
+.el-dialog {
+  border-radius: 16px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.el-dialog__body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ===== 滚动条美化 ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d5dbe6;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b8c2d1;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ===== 手机端全局 ===== */
+@media (max-width: 768px) {
+  /* Element Plus 消息/对话框边距适配 */
+  .el-message {
+    min-width: 80% !important;
+  }
+
+  /* 弹窗：宽度贴合屏幕、内容可滚动（居中已在全局用 flex 实现） */
+  .el-message-box {
+    width: 100%;
+    max-width: 420px;
+    max-height: 76vh;
+  }
+
+  .el-message-box__header {
+    padding-bottom: 8px;
+  }
+
+  .el-message-box__content {
+    max-height: 50vh;
+    font-size: 14px;
+  }
+
+  .el-message-box__btns {
+    display: flex;
+    gap: 10px;
+    padding-top: 14px;
+  }
+
+  .el-message-box__btns .el-button {
+    flex: 1;
+    min-height: 42px;
+    margin: 0 !important;
+  }
+
+  .el-dialog {
+    width: calc(100vw - 32px) !important;
+    max-width: none;
+    max-height: 82vh;
+    margin: 8vh auto 0 !important;
+  }
+
+  .el-dialog__header {
+    padding: 16px 16px 8px;
+  }
+
+  .el-dialog__body {
+    padding: 8px 16px;
+  }
+
+  .el-dialog__footer {
+    padding: 8px 16px 16px;
+    display: flex;
+    gap: 10px;
+  }
+
+  .el-dialog__footer .el-button {
+    flex: 1;
+    min-height: 42px;
+    margin: 0 !important;
+  }
+
+  /* 表单控件触控高度 */
+  .el-input__inner,
+  .el-select .el-input__inner {
+    min-height: 42px;
+  }
+
+  .el-button--small {
+    min-height: 32px;
+  }
+}

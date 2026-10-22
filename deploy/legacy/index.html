@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="/submit/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微光·招新·交题网站</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script type="module" crossorigin src="/submit/assets/index-D_a6bLJc.js"></script>
+    <link rel="stylesheet" crossorigin href="/submit/assets/index-CtifDL8U.css">
+  </head>
+  <body>
+    <div id="app"></div>
+    <!--
+      [本地预览专用] 登录返回桥接脚本：
+      旧系统登录成功后 token 写入 localStorage（同标签页不触发 storage 事件），
+      此处轮询检测到 token 后立即跳回面试预约平台 /interview/。
+      该文件是旧前端预构建产物的拷贝，仅用于本地预览的同源登录闭环；
+      生产环境请删除 deploy/legacy 并直接指向线上旧系统登录地址。
+    -->
+    <script>
+      (function () {
+        var RETURN_URL = '/interview/';
+        var redirected = false;
+        function hasToken() {
+          return !!localStorage.getItem('token');
+        }
+        function check() {
+          if (!redirected && hasToken()) {
+            redirected = true;
+            location.replace(RETURN_URL);
+          }
+        }
+        // 轮询检测（同标签页登录不会触发 storage 事件），命中后立即跳回
+        setInterval(check, 300);
+        check();
+      })();
+    </script>
+  </body>
+</html>

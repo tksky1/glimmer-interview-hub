@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/interview/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/interview/favicon-16.png" />
+    <link rel="icon" type="image/png" href="/interview/favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/interview/favicon-180.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>微光工作室 · 面试预约平台</title>
+    <script>
+      // 在应用/路由模块加载前捕获专属邀请链接的邀请码并清理 URL，
+      // 避免 Vue Router 在创建时快照到带参数的地址（重定向会保留 query 导致参数残留）
+      ;(function () {
+        try {
+          var code = new URLSearchParams(window.location.search).get('invite')
+          if (code) {
+            sessionStorage.setItem('glimmer_pending_invite', code.trim())
+            var url = new URL(window.location.href)
+            url.searchParams.delete('invite')
+            window.history.replaceState(null, '', url.pathname + url.search)
+          }
+        } catch (e) {}
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

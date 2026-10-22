@@ -1,0 +1,37 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      ADDR: ":8080"
+      DB_PATH: "/data/interview.db"
+      JWT_SECRET: "${JWT_SECRET:-RecruitmentSystem}"
+      ADMIN_USERNAMES: "${ADMIN_USERNAMES:-}"
+    volumes:
+      - interview-data:/data
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    ports:
+      - "${WEB_PORT:-8081}:80"
+    # 同时接入 magic-resume 的入口网络：由入口 nginx 按域名反代到本容器
+    networks:
+      - default
+      - resume-net
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  interview-data:
+
+networks:
+  # 复用 magic-resume 的入口网络（宿主机上已存在），使入口 nginx 可直接按容器名反代
+  resume-net:
+    external: true
+    name: magic-resume_resume-net
