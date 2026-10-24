@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { confirmDialog } from '@/utils/dialog'
+import { downloadCSV } from '@/utils/export'
 import WeekCalendar from '@/components/WeekCalendar.vue'
 import {
   getAssignmentApi,
@@ -71,35 +72,49 @@ const days = computed(() => {
   })
 })
 
-// 分配总览日历：已分配时段显示占用者（同一时段多人时聚合显示）
+// 分配总览日历：按时段聚合（同一时段可容多人，必须只渲染一块，
+// 否则每人一条会在同一天同一时间产生多个绝对定位块互相重叠遮挡）
 const calSlots = computed(() => {
   if (!view.value) return []
-  const occBySlot = {}
+  const bySlot = new Map()
   for (const a of rows.value) {
-    occBySlot[a.slot.id] = (occBySlot[a.slot.id] || 0) + 1
+    let it = bySlot.get(a.slot.id)
+    if (!it) {
+      it = {
+        id: `a-${a.slot.id}`,
+        sessionId: view.value.session.id,
+        date: a.slot.date || view.value.session.date,
+        startTime: a.slot.startTime,
+        endTime: a.slot.endTime,
+        location: a.slot.location,
+        names: [],
+        capacity: a.slot.capacity,
+        occupied: 0
+      }
+      bySlot.set(a.slot.id, it)
+    }
+    it.names.push(a.name || a.username)
+    it.occupied++
   }
-  const items = rows.value.map(a => ({
-    id: `a-${a.id}`,
-    date: a.slot.date || view.value.session.date,
-    startTime: a.slot.startTime,
-    endTime: a.slot.endTime,
-    location: a.slot.location,
-    occupant: occBySlot[a.slot.id] > 1 ? `${a.username} 等 ${occBySlot[a.slot.id]} 人` : a.username,
-    capacity: a.slot.capacity,
-    occupied: occBySlot[a.slot.id]
+  const items = [...bySlot.values()].map(it => ({
+    ...it,
+    occupant: it.occupied > 1 ? `${it.names.join('、')} 共 ${it.occupied} 人` : it.names[0]
   }))
-  return items.concat(
-    freeSlots.value.map(s => ({
+  // 空闲时段：剔除已有分配的时段（容量 >1 且部分占用时，同一时段会同时出现在两边，产生重叠块）
+  const free = freeSlots.value
+    .filter(s => !bySlot.has(s.id))
+    .map(s => ({
       id: `f-${s.id}`,
+      sessionId: view.value.session.id,
       date: s.date || view.value.session.date,
       startTime: s.startTime,
       endTime: s.endTime,
       location: s.location,
       occupant: '',
       capacity: s.capacity,
-      occupied: occBySlot[s.id] || 0
+      occupied: 0
     }))
-  )
+  return items.concat(free)
 })
 
 async function load() {
@@ -132,6 +147,27 @@ async function onGenerate() {
   } finally {
     generating.value = false
   }
+}
+
+// 导出最终分配结果（CSV，Excel 可直接打开）
+function exportResult() {
+  downloadCSV(
+    `${view.value.session.title}-分配结果.csv`,
+    ['姓名', '用户名', '学号', 'QQ', '手机号', '日期', '面试时段', '地点', '心仪序', '来源'],
+    rows.value.map(a => [
+      a.name,
+      a.username,
+      a.studentid,
+      a.qq,
+      a.phone,
+      a.slot.date || view.value.session.date,
+      `${a.slot.startTime}-${a.slot.endTime}`,
+      a.slot.location,
+      a.matchedRank ? `第${['一', '二', '三'][a.matchedRank - 1]}心仪` : '不在心仪内',
+      a.source === 'manual' ? '人工' : '自动'
+    ])
+  )
+  ElMessage.success('分配结果已导出')
 }
 
 async function onConfirm() {
@@ -241,6 +277,9 @@ onUnmounted(() => window.removeEventListener('resize', onResize))
         >
           <el-icon style="margin-right: 4px"><CircleCheck /></el-icon>
           {{ confirmed ? '已确认' : '确认分配' }}
+        </el-button>
+        <el-button v-if="rows.length" size="large" @click="exportResult">
+          <el-icon style="margin-right: 4px"><Download /></el-icon> 导出分配结果
         </el-button>
         <el-button size="large" @click="router.push('/admin')">返回</el-button>
       </div>

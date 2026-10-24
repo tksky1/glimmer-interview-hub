@@ -41,6 +41,18 @@ const routes = [
     meta: { title: '编辑面试场次', admin: true }
   },
   {
+    path: '/admin/session/:id/bookings',
+    name: 'admin-session-bookings',
+    component: () => import('@/views/admin/Bookings.vue'),
+    meta: { title: '预约管理', admin: true }
+  },
+  {
+    path: '/admin/session/:id/append',
+    name: 'admin-session-append',
+    component: () => import('@/views/admin/SessionAppend.vue'),
+    meta: { title: '追加日程', admin: true }
+  },
+  {
     path: '/admin/session/:id/assign',
     name: 'admin-assignment',
     component: () => import('@/views/admin/Assignment.vue'),

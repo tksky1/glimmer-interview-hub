@@ -31,12 +31,6 @@ const invNote = ref('')
 const invCount = ref(1)
 const generating = ref(false)
 
-// 多日程场次：各日程时间段是否一致
-function sameRange(row) {
-  const ps = row.partitions || []
-  return ps.length > 1 && ps.every(p => p.startTime === ps[0].startTime && p.endTime === ps[0].endTime)
-}
-
 const statusMap = {
   draft: { text: '草稿', type: 'info' },
   published: { text: '预约中', type: 'primary' },
@@ -180,15 +174,17 @@ onMounted(() => {
     <div class="glimmer-card table-card">
       <div class="table-scroll">
       <el-table :data="filteredSessions" style="width: 100%" empty-text="还没有面试场次，点击右上角创建">
-        <el-table-column prop="title" label="场次" min-width="140">
+        <el-table-column prop="title" label="场次" min-width="190">
           <template #default="{ row }">
-            <span class="cell-title">{{ row.title }}</span>
+            <div class="cell-title-line">
+              <span class="cell-title">{{ row.title }}</span>
+              <el-tag :type="statusMap[row.status]?.type" size="small" effect="light" round>
+                {{ statusMap[row.status]?.text || row.status }}
+              </el-tag>
+            </div>
             <span class="cell-tags-sm">
               <el-tag size="small" round :style="{ borderColor: directionColor(row.direction), color: directionColor(row.direction), background: '#fff' }">
                 {{ directionLabel(row.direction) }}
-              </el-tag>
-              <el-tag :type="statusMap[row.status]?.type" size="small" effect="light" round>
-                {{ statusMap[row.status]?.text || row.status }}
               </el-tag>
             </span>
           </template>
@@ -209,14 +205,6 @@ onMounted(() => {
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="时间范围" width="150" class-name="hide-sm">
-          <template #default="{ row }">
-            <span v-if="(row.partitions || []).length > 1">
-              {{ sameRange(row) ? `每天 ${row.partitions[0].startTime}-${row.partitions[0].endTime}` : '各日程时间不同' }}
-            </span>
-            <span v-else>{{ row.startTime }} - {{ row.endTime }}</span>
-          </template>
-        </el-table-column>
         <el-table-column prop="slotMinutes" label="每场时长" width="90" class-name="hide-sm">
           <template #default="{ row }">{{ row.slotMinutes }} 分钟</template>
         </el-table-column>
@@ -228,14 +216,7 @@ onMounted(() => {
         </el-table-column>
         <el-table-column prop="slotCount" label="时段数" width="80" align="center" class-name="hide-sm" />
         <el-table-column prop="participants" label="已预约人数" width="100" align="center" class-name="hide-sm" />
-        <el-table-column label="状态" width="120" align="center" class-name="hide-sm">
-          <template #default="{ row }">
-            <el-tag :type="statusMap[row.status]?.type" effect="light" round>
-              {{ statusMap[row.status]?.text || row.status }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="200" align="center" fixed="right">
+        <el-table-column label="操作" width="360" align="center" fixed="right">
           <template #default="{ row }">
             <template v-if="row.status === 'draft'">
               <el-button size="small" text type="primary" @click="router.push(`/admin/session/${row.id}/edit`)">编辑</el-button>
@@ -243,7 +224,17 @@ onMounted(() => {
               <el-button size="small" text type="danger" @click="onDelete(row)">删除</el-button>
             </template>
             <template v-else>
+              <el-button size="small" text type="primary" @click="router.push(`/admin/session/${row.id}/bookings`)">预约管理</el-button>
               <el-button size="small" text type="primary" @click="router.push(`/admin/session/${row.id}/assign`)">分配管理</el-button>
+              <!-- 未确认才能改日程：已有人选择的时段会被保护 -->
+              <el-button
+                v-if="row.status !== 'confirmed'"
+                size="small"
+                text
+                type="primary"
+                @click="router.push(`/admin/session/${row.id}/edit`)"
+              >编辑日程</el-button>
+              <el-button size="small" text type="primary" @click="router.push(`/admin/session/${row.id}/append`)">追加日程</el-button>
               <el-button size="small" text type="danger" @click="onDelete(row)">删除</el-button>
             </template>
           </template>
@@ -341,6 +332,13 @@ onMounted(() => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
+}
+
+.cell-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
 }
 

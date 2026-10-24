@@ -32,6 +32,10 @@ export const deleteSessionApi = id => http.delete(`/admin/sessions/${id}`)
 
 export const publishSessionApi = id => http.post(`/admin/sessions/${id}/publish`)
 
+// 已发布场次追加日程：只新增时段，已有时段的心仪时间与分配保持不变
+export const appendSessionApi = (id, partitions, slotCapacities = []) =>
+  http.post(`/admin/sessions/${id}/append`, { partitions, slotCapacities })
+
 export const generateAssignmentApi = id => http.post(`/admin/sessions/${id}/assign`)
 
 export const getAssignmentApi = id => http.get(`/admin/sessions/${id}/assignment`)
@@ -45,6 +49,13 @@ export const manualAssignApi = (sessionId, username, slotId) =>
 export const swapApi = (id, otherId) => http.post(`/admin/assignments/${id}/swap`, { otherId })
 
 export const confirmAssignmentApi = id => http.post(`/admin/sessions/${id}/confirm`)
+
+// 预约管理：单个场次的心仪时间详情
+export const sessionBookingsApi = id => http.get(`/admin/sessions/${id}/bookings`)
+
+// 预约管理：删除某成员在本场次的预约（心仪时间 + 分配记录）
+export const deleteBookingApi = (id, username) =>
+  http.delete(`/admin/sessions/${id}/bookings/${encodeURIComponent(username)}`)
 
 export const adminsApi = () => http.get('/admin/admins')
 

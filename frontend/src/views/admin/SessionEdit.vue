@@ -49,7 +49,13 @@ const slotCaps = ref({})
 // 场次状态：仅草稿可编辑/发布，已发布后改为只读提示
 const status = ref('draft')
 const publishNow = ref(true)
-const canEdit = computed(() => !isEdit.value || status.value === 'draft')
+// 未确认的场次都能编辑：只要被改动/删除的时段没有人选择（后端校验）
+const saveLabel = computed(() => {
+  if (!isEdit.value) return publishNow.value ? '创建并发布' : '保存为草稿'
+  if (publishNow.value) return status.value === 'draft' ? '保存并发布' : '保存修改'
+  return '保存修改'
+})
+const canEdit = computed(() => !isEdit.value || status.value !== 'confirmed')
 
 const durationOptions = [5, 10, 15, 20, 25, 30, 45, 60]
 
@@ -130,6 +136,17 @@ function setSlotCap(key, v) {
   const n = Number(v)
   if (n > 0) slotCaps.value[key] = n
   else delete slotCaps.value[key]
+}
+
+// 已有人选择的日程不能删除（改日期/删日程会移除这些时段）
+function partitionPicked(i) {
+  const p = form.value.partitions[i]
+  if (!p) return 0
+  const s0 = toMin(p.startTime || '00:00')
+  const e0 = toMin(p.endTime || '00:00')
+  return draftSlots.value.filter(sl =>
+    sl.date === p.date && toMin(sl.startTime) >= s0 && toMin(sl.startTime) < e0 && (sl.prefCount || 0) > 0
+  ).length
 }
 
 function fmtDayShort(v) {
@@ -383,6 +400,7 @@ onMounted(async () => {
     endTime: sl.endTime,
     location: sl.location,
     firstChoiceCount: sl.firstChoiceCount || 0,
+    prefCount: sl.prefCount || 0,
     myRank: sl.myRank || 0,
     myConfirmed: sl.myConfirmed || false
   }))
@@ -472,7 +490,16 @@ onMounted(async () => {
                     class="part-time"
                     @change="sortPartitions"
                   />
-                  <el-button text type="danger" title="删除该日程" @click="removePartition(i)">
+                  <el-tag v-if="partitionPicked(i)" type="warning" size="small" effect="plain" round class="part-lock">
+                    {{ partitionPicked(i) }} 个时段已有人选
+                  </el-tag>
+                  <el-button
+                    text
+                    type="danger"
+                    :title="partitionPicked(i) ? '该日程已有人选择，不能删除' : '删除该日程'"
+                    :disabled="partitionPicked(i) > 0"
+                    @click="removePartition(i)"
+                  >
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
@@ -573,10 +600,19 @@ onMounted(async () => {
             type="warning"
             :closable="false"
             show-icon
-            title="该场次已发布，日程不可再修改。如需调整请联系负责人先删除重建。"
+            title="该场次分配已确认，日程不可再修改。如需调整请删除场次后重建。"
           />
 
-          <div v-else class="publish-row">
+          <el-alert
+            v-else-if="isEdit"
+            class="readonly-tip"
+            type="info"
+            :closable="false"
+            show-icon
+            title="未确认的场次可直接编辑、追加、删除日程：日期与时间都保持不变的时段会原样保留（心仪时间不丢）；已有人选择的时段不能改动或删除，可改用「追加日程」新增。"
+          />
+
+          <div v-else-if="!isEdit || status === 'draft'" class="publish-row">
             <el-checkbox v-model="publishNow">保存后立即发布</el-checkbox>
             <span class="publish-hint">发布后成员即可在日历上看到并预约这些时段</span>
           </div>
@@ -584,7 +620,7 @@ onMounted(async () => {
           <div class="form-actions">
             <el-button size="large" @click="router.push('/admin')">取消</el-button>
             <el-button v-if="canEdit" type="primary" size="large" :loading="submitting" @click="onSubmit">
-              {{ (publishNow ? (isEdit ? '保存并发布' : '创建并发布') : (isEdit ? '保存草稿' : '保存为草稿')) }}
+              {{ saveLabel }}
             </el-button>
           </div>
         </el-form>
@@ -738,6 +774,11 @@ onMounted(async () => {
   font-size: 12px;
   color: var(--glimmer-text-3);
   font-weight: 400;
+}
+
+.part-lock {
+  flex: 0 0 auto;
+  font-size: 11px;
 }
 
 .partition-empty {

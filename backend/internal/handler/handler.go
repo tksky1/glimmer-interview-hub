@@ -19,6 +19,7 @@ type Handler struct {
 	sessions  *service.SessionService
 	prefs     *service.PreferenceService
 	assigns   *service.AssignmentService
+	bookings  *service.BookingService
 	admins    *service.AdminService
 	invites   *service.InviteService
 	jwtSecret string
@@ -32,6 +33,7 @@ func New(repo *repository.Repo, jwtSecret string, validator *auth.LegacyValidato
 		sessions:  service.NewSessionService(repo),
 		prefs:     service.NewPreferenceService(repo),
 		assigns:   service.NewAssignmentService(repo),
+		bookings:  service.NewBookingService(repo),
 		admins:    service.NewAdminService(repo),
 		invites:   service.NewInviteService(repo),
 		jwtSecret: jwtSecret,
@@ -62,12 +64,15 @@ func (h *Handler) Register(r *gin.Engine) {
 		admin.PUT("/sessions/:id", h.UpdateSession)
 		admin.DELETE("/sessions/:id", h.DeleteSession)
 		admin.POST("/sessions/:id/publish", h.PublishSession)
+		admin.POST("/sessions/:id/append", h.AppendSession)
 		admin.POST("/sessions/:id/assign", h.GenerateAssignment)
 		admin.GET("/sessions/:id/assignment", h.GetAssignment)
 		admin.PUT("/assignments/:id", h.Reassign)
 		admin.POST("/sessions/:id/manual-assign", h.ManualAssign)
 		admin.POST("/assignments/:id/swap", h.Swap)
 		admin.POST("/sessions/:id/confirm", h.ConfirmAssignment)
+		admin.GET("/sessions/:id/bookings", h.SessionBookings)
+		admin.DELETE("/sessions/:id/bookings/:username", h.DeleteBooking)
 		admin.GET("/admins", h.ListAdmins)
 		admin.POST("/admins", h.AddAdmin)
 		admin.DELETE("/admins/:username", h.RemoveAdmin)

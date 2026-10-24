@@ -158,6 +158,52 @@ func (h *Handler) UpdateSession(c *gin.Context) {
 	response.OK(c, gin.H{"session": sess, "slots": slots})
 }
 
+type appendSessionReq struct {
+	Partitions     []partitionReq    `json:"partitions"`
+	SlotCapacities []slotCapacityReq `json:"slotCapacities"` // 新增时段的逐时段容量覆盖
+}
+
+// AppendSession 已发布场次追加日程（只新增时段，已有时段的心仪时间与分配不受影响）
+func (h *Handler) AppendSession(c *gin.Context) {
+	id, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	var req appendSessionReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, 400, "请求参数格式错误")
+		return
+	}
+	in := service.CreateSessionInput{}
+	for _, p := range req.Partitions {
+		in.Partitions = append(in.Partitions, service.PartitionInput{
+			Date:      p.Date,
+			StartTime: p.StartTime,
+			EndTime:   p.EndTime,
+			Location:  p.Location,
+			Capacity:  p.Capacity,
+		})
+	}
+	for _, sc := range req.SlotCapacities {
+		in.SlotCapacities = append(in.SlotCapacities, service.SlotCapacityInput{
+			Date:      sc.Date,
+			StartTime: sc.StartTime,
+			Capacity:  sc.Capacity,
+		})
+	}
+	sess, slots, partitions, err := h.sessions.AppendPartitions(id, in)
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{
+		"session":    sess,
+		"slots":      slots,
+		"partitions": partitions,
+		"added":      len(slots),
+	})
+}
+
 // DeleteSession 删除草稿场次
 func (h *Handler) DeleteSession(c *gin.Context) {
 	id, ok := parseID(c, "id")

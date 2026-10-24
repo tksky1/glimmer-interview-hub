@@ -267,7 +267,7 @@ function buildSlotGroups(list) {
       if (capOf(s) > 1) last.multi = true
     } else {
       groups.push({
-        key: `${s.sessionId || 's'}-${s.startTime}`,
+        key: `${s.sessionId || 's'}-${s.date || ''}-${s.startTime}-${s.endTime}`,
         sessionId: s.sessionId,
         startTime: s.startTime,
         endTime: s.endTime,

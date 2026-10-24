@@ -198,16 +198,128 @@ func (r *Repo) CreateSessionWithSlots(s *model.Session, slots []model.Slot) erro
 	})
 }
 
-// ReplaceSlots 草稿态重新生成时段
+// AppendSlots 向已有场次追加时段（只新增，不删除/重切已有时段，
+// 已有心仪时间与分配结果因此保持不变），同时更新场次的日期区间与逐时段容量覆盖
+func (r *Repo) AppendSlots(s *model.Session, slots []model.Slot) error {
+	return r.DB.Transaction(func(tx *gorm.DB) error {
+		for i := range slots {
+			slots[i].SessionID = s.ID
+		}
+		if len(slots) > 0 {
+			if err := tx.Create(&slots).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Model(&model.Session{}).Where("id = ?", s.ID).Updates(map[string]interface{}{
+			"date":           s.Date,
+			"start_time":     s.StartTime,
+			"end_time":       s.EndTime,
+			"slot_capacitys": s.SlotCapacitys,
+			"updated_at":     time.Now(),
+		}).Error
+	})
+}
+
+// ReplaceSlots 重新切分时段（未确认场次编辑用）。
+// 关键：日期+开始时间+结束时间都相同的时段沿用原 ID，这样已保存的心仪时间与分配记录不会失效；
+// 被移除的时段则把它的偏好与分配一并清理（调用方已校验这些时段无人选择）。
 func (r *Repo) ReplaceSlots(sessionID uint, slots []model.Slot) error {
 	return r.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("session_id = ?", sessionID).Delete(&model.Slot{}).Error; err != nil {
+		var old []model.Slot
+		if err := tx.Where("session_id = ?", sessionID).Find(&old).Error; err != nil {
+			return err
+		}
+		oldByKey := make(map[string]model.Slot, len(old))
+		for _, o := range old {
+			oldByKey[o.Date+" "+o.StartTime+" "+o.EndTime] = o
+		}
+		keep := make(map[uint]bool, len(slots))
+		for i := range slots {
+			if o, ok := oldByKey[slots[i].Date+" "+slots[i].StartTime+" "+slots[i].EndTime]; ok {
+				slots[i].ID = o.ID
+				keep[o.ID] = true
+			}
+		}
+		delIDs := make([]uint, 0)
+		for _, o := range old {
+			if !keep[o.ID] {
+				delIDs = append(delIDs, o.ID)
+			}
+		}
+		if len(delIDs) > 0 {
+			// 先清掉引用这些时段的偏好与分配，避免留下悬挂记录
+			if err := tx.Where("slot_id IN ?", delIDs).Delete(&model.Preference{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("slot_id IN ?", delIDs).Delete(&model.Assignment{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("id IN ?", delIDs).Delete(&model.Slot{}).Error; err != nil {
+				return err
+			}
+		}
+		// (session_id, idx) 有唯一索引：先把旧序号整体偏移，再写新序号，避免更新瞬间冲突
+		if err := tx.Model(&model.Slot{}).Where("session_id = ?", sessionID).
+			Update("idx", gorm.Expr("idx + 100000")).Error; err != nil {
 			return err
 		}
 		for i := range slots {
 			slots[i].SessionID = sessionID
+			if slots[i].ID != 0 {
+				if err := tx.Save(&slots[i]).Error; err != nil {
+					return err
+				}
+			} else if err := tx.Create(&slots[i]).Error; err != nil {
+				return err
+			}
 		}
-		return tx.Create(&slots).Error
+		return nil
+	})
+}
+
+// PreferenceCountsBySession 统计各时段被选为心仪的总人数（不限 rank）
+func (r *Repo) PreferenceCountsBySession(sessionID uint) (map[uint]int, error) {
+	type row struct {
+		SlotID uint
+		Cnt    int
+	}
+	var rows []row
+	err := r.DB.Model(&model.Preference{}).
+		Select("slot_id, count(*) as cnt").
+		Where("session_id = ?", sessionID).
+		Group("slot_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[uint]int, len(rows))
+	for _, x := range rows {
+		out[x.SlotID] = x.Cnt
+	}
+	return out, nil
+}
+
+// DeleteUserBooking 删除某成员在某场次的全部预约：心仪时间 + 本场次的分配记录，
+// 返回被清掉的心仪时段 ID（供调用方提示/统计）
+func (r *Repo) DeleteUserBooking(sessionID uint, username string) ([]uint, error) {
+	var slotIDs []uint
+	err := r.DB.Model(&model.Preference{}).
+		Where("session_id = ? and username = ?", sessionID, username).
+		Pluck("slot_id", &slotIDs).Error
+	if err != nil {
+		return nil, err
+	}
+	if len(slotIDs) == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return slotIDs, r.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("session_id = ? and username = ?", sessionID, username).
+			Delete(&model.Preference{}).Error; err != nil {
+			return err
+		}
+		// 分配记录一并撤下：未确认版本本来就会随心仪清空而清理，已确认版本由管理员显式删除
+		return tx.Where("session_id = ? and username = ?", sessionID, username).
+			Delete(&model.Assignment{}).Error
 	})
 }
 
